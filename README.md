@@ -1,7 +1,9 @@
--- AUTO FARM EXU V15 (Lógica V5 Infalível + UI Premium Neon + Filtro Visual)
+-- AUTO FARM EXU V16 (Universal PC/Mobile + Lógica V5 + UI Premium)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ==========================================
@@ -22,7 +24,7 @@ local SellAllRemote = Remotes and Remotes:FindFirstChild("SellAll")
 -- 2. INTERFACE GRÁFICA (NEON PREMIUM)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AutoFarmExuV15"
+ScreenGui.Name = "AutoFarmExuV16"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -60,7 +62,7 @@ bgGradient.Parent = MainFrame
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-Title.Text = "👻 AUTO FARM EXU - V15 (V5 Logic)"
+Title.Text = "👻 AUTO FARM EXU - V16 UNIVERSAL"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 15
@@ -232,7 +234,7 @@ end)
 local ScanBtn = CreateActionButton("🔍 ESCANEAR MAPA", 335, Color3.fromRGB(0, 100, 255), function() UpdateExuList() end)
 
 -- ==========================================
--- 3. FUNÇÕES DO JOGO (LÓGICA DO V5)
+-- 3. FUNÇÕES DO JOGO (UNIVERSAL)
 -- ==========================================
 local function GetExuData(model)
     local name = model.Name
@@ -287,18 +289,39 @@ local function FlyTo(targetCFrame, speed)
     tween.Completed:Wait()
 end
 
--- Lógica EXATA do V5 que funciona
+-- A FUNÇÃO DE GRAB UNIVERSAL (PC + MOBILE)
 local function StealSpecificExu(model, prompt, exuPart)
     local originalPos = hrp.CFrame
     
     -- 1. Voa até o Exu
     FlyTo(exuPart.CFrame + Vector3.new(0, 3, 0), 400)
     
-    -- 2. Tenta pegar
-    task.wait(0.1)
-    pcall(function() fireproximityprompt(prompt) end)
+    -- 2. A MÁGICA PARA MOBILE: Remove a necessidade de segurar o botão
+    pcall(function()
+        if prompt.HoldDuration and prompt.HoldDuration > 0 then
+            prompt.HoldDuration = 0 -- Força o botão a ser um clique rápido
+        end
+    end)
     
-    -- 3. AQUI ESTÁ A MÁGICA DO V5: Fica esperando até pegar na mão
+    task.wait(0.1)
+    
+    -- 3. Tenta pegar de várias formas
+    pcall(function() 
+        fireproximityprompt(prompt) -- Método universal
+        if DropExuRemote then 
+            DropExuRemote:FireServer(exuPart)
+            DropExuRemote:FireServer(exuPart.Position)
+        end
+    end)
+    
+    -- Simula apertar "E" (PC) e toque (Mobile) como backup
+    pcall(function()
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+        task.wait(0.05)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+    end)
+
+    -- 4. Espera pegar na mão (Lógica do V5)
     local grabbed = false
     local timeout = tick() + 3 
     
@@ -310,10 +333,10 @@ local function StealSpecificExu(model, prompt, exuPart)
         task.wait(0.05)
     end
     
-    -- 4. Teleporte
+    -- 5. Volta pra base
     if grabbed then
         task.wait(0.05)
-        hrp.CFrame = originalPos -- Volta pro lugar que estava (ou base)
+        hrp.CFrame = originalPos
         task.wait(0.2)
     else
         hrp.CFrame = originalPos
@@ -393,7 +416,6 @@ function UpdateExuList()
                                 Notify("✅ " .. name .. " Roubado!", Color3.fromRGB(0, 150, 0))
                                 stealBtn.Text = "OK!"
                                 stealBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-                                -- Coloca na base depois de roubar manual
                                 if PlaceExuRemote then pcall(function() PlaceExuRemote:FireServer() end) end
                             else
                                 Notify("❌ Falha ao pegar.", Color3.fromRGB(150, 0, 0))
@@ -420,7 +442,7 @@ function UpdateExuList()
 end
 
 -- ==========================================
--- 5. LOOP DO AUTO FARM (V5)
+-- 5. LOOP DO AUTO FARM
 -- ==========================================
 function StartAutoFarm()
     if isFarming then return end
@@ -429,7 +451,7 @@ function StartAutoFarm()
     ToggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     
     baseCFrame = hrp.CFrame
-    StatusLabel.Text = "Base salva! Iniciando V5..."
+    StatusLabel.Text = "Base salva! Iniciando V16..."
     
     while isFarming do
         local successLoop, errorMsg = pcall(function()
@@ -477,7 +499,7 @@ function StartAutoFarm()
                 
                 if grabbed then
                     StatusLabel.Text = "✅ PEGOU! Colocando na base..."
-                    hrp.CFrame = baseCFrame + Vector3.new(0, 3, 0) -- Teleporta pra base
+                    hrp.CFrame = baseCFrame + Vector3.new(0, 3, 0)
                     task.wait(0.2)
                     
                     if PlaceExuRemote then
@@ -529,4 +551,4 @@ end)
 
 task.wait(1)
 UpdateExuList()
-Notify("👻 V15 Carregado! Lógica V5 Perfeita.", Color3.fromRGB(0, 100, 255))
+Notify("👻 V16 Universal Carregado!", Color3.fromRGB(0, 100, 255))
