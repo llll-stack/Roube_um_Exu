@@ -1,4 +1,4 @@
--- AUTO FARM EXU V23 (Midnight Glass + Sorter + Dropdown + Bolinha)
+-- AUTO FARM EXU V25 (Stable / Mobile / PC)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,16 +8,16 @@ local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 -- ==========================================
--- CONFIGURAÇÕES E VARIÁVEIS
+-- CONFIGURAÇÕES
 -- ==========================================
 local isFarming = false
 local baseCFrame = nil
 local currentSpeed = 500
 local activeRarities = {}
-local sortMode = "Mais Próximo" -- Padrão
-
-local isRarityDropOpen = false
-local isSortDropOpen = false
+local sortMode = "Mais Próximo"
+local isRarityOpen = false
+local isSortOpen = false
+local rarityFrame, sortFrame
 
 local playerChar = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local hrp = playerChar:WaitForChild("HumanoidRootPart")
@@ -27,9 +27,6 @@ local DropExuRemote = Remotes and Remotes:FindFirstChild("DropExu")
 local PlaceExuRemote = Remotes and Remotes:FindFirstChild("PlaceExu")
 local SellAllRemote = Remotes and Remotes:FindFirstChild("SellAll")
 
--- ==========================================
--- CORES MIDNIGHT HUB (Com Transparência)
--- ==========================================
 local Colors = {
     MainBG = Color3.fromRGB(25, 15, 45),
     SideBG = Color3.fromRGB(35, 20, 60),
@@ -42,19 +39,21 @@ local Colors = {
 }
 
 -- ==========================================
--- 1. INTERFACE GRÁFICA
+-- 1. INTERFACE (TAMANHO CELULAR)
 -- ==========================================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "MidnightExuGlassV23"
+ScreenGui.Name = "MidnightStable"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Bolinha Flutuante
+-- Bolinha
 local BallBtn = Instance.new("TextButton")
 BallBtn.Size = UDim2.new(0, 50, 0, 50)
-BallBtn.Position = UDim2.new(0, 20, 0, 100)
+BallBtn.Position = UDim2.new(0, 15, 0, 100)
 BallBtn.BackgroundColor3 = Colors.MainBG
-BallBtn.BackgroundTransparency = 0.2
+BallBtn.BackgroundTransparency = 0.1
 BallBtn.Text = "👻"
 BallBtn.TextColor3 = Colors.Text
 BallBtn.Font = Enum.Font.GothamBlack
@@ -62,84 +61,82 @@ BallBtn.TextSize = 24
 BallBtn.Active = true
 BallBtn.Draggable = true
 BallBtn.Visible = false
+BallBtn.ZIndex = 1000
 BallBtn.Parent = ScreenGui
 local UICornerBall = Instance.new("UICorner"); UICornerBall.CornerRadius = UDim.new(1, 0); UICornerBall.Parent = BallBtn
 local UIStrokeBall = Instance.new("UIStroke"); UIStrokeBall.Color = Colors.Accent; UIStrokeBall.Thickness = 2; UIStrokeBall.Parent = BallBtn
 
--- Tela de Carregamento
-local LoadingFrame = Instance.new("Frame")
-LoadingFrame.Size = UDim2.new(0, 650, 0, 420)
-LoadingFrame.Position = UDim2.new(0.5, -325, 0.5, -210)
-LoadingFrame.BackgroundColor3 = Colors.MainBG
-LoadingFrame.BackgroundTransparency = 0.1
-LoadingFrame.BorderSizePixel = 0
-LoadingFrame.Parent = ScreenGui
-local UICornerLoad = Instance.new("UICorner"); UICornerLoad.CornerRadius = UDim.new(0, 12); UICornerLoad.Parent = LoadingFrame
-local UIStrokeLoad = Instance.new("UIStroke"); UIStrokeLoad.Color = Colors.Accent; UIStrokeLoad.Thickness = 2; UIStrokeLoad.Parent = LoadingFrame
+-- Loading
+local Loading = Instance.new("Frame")
+Loading.Size = UDim2.new(0, 480, 0, 320)
+Loading.Position = UDim2.new(0.5, -240, 0.5, -160)
+Loading.BackgroundColor3 = Colors.MainBG
+Loading.BackgroundTransparency = 0.1
+Loading.Parent = ScreenGui
+local UICornerL = Instance.new("UICorner"); UICornerL.CornerRadius = UDim.new(0, 12); UICornerL.Parent = Loading
+local UIStrokeL = Instance.new("UIStroke"); UIStrokeL.Color = Colors.Accent; UIStrokeL.Thickness = 2; UIStrokeL.Parent = Loading
 
-local LoadText = Instance.new("TextLabel")
-LoadText.Size = UDim2.new(1, 0, 0, 30)
-LoadText.Position = UDim2.new(0, 0, 0.5, -15)
-LoadText.BackgroundTransparency = 1
-LoadText.Text = "Carregando Midnight Hub..."
-LoadText.TextColor3 = Colors.Text
-LoadText.Font = Enum.Font.GothamBold
-LoadText.TextSize = 18
-LoadText.Parent = LoadingFrame
+local LoadTxt = Instance.new("TextLabel")
+LoadTxt.Size = UDim2.new(1, 0, 0, 30)
+LoadTxt.Position = UDim2.new(0, 0, 0.5, -15)
+LoadTxt.BackgroundTransparency = 1
+LoadTxt.Text = "Carregando Midnight Hub..."
+LoadTxt.TextColor3 = Colors.Text
+LoadTxt.Font = Enum.Font.GothamBold
+LoadTxt.TextSize = 16
+LoadTxt.Parent = Loading
 
 local LoadIcon = Instance.new("ImageLabel")
-LoadIcon.Size = UDim2.new(0, 50, 0, 50)
-LoadIcon.Position = UDim2.new(0.5, -25, 0.5, -60)
+LoadIcon.Size = UDim2.new(0, 40, 0, 40)
+LoadIcon.Position = UDim2.new(0.5, -20, 0.5, -55)
 LoadIcon.BackgroundTransparency = 1
 LoadIcon.Image = "rbxassetid://4965945816"
 LoadIcon.ImageColor3 = Colors.Accent
-LoadIcon.Parent = LoadingFrame
+LoadIcon.Parent = Loading
 
--- Janela Principal
+-- Main Frame
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 650, 0, 420)
-MainFrame.Position = UDim2.new(0.5, -325, 0.5, -210)
+MainFrame.Size = UDim2.new(0, 480, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -240, 0.5, -160)
 MainFrame.BackgroundColor3 = Colors.MainBG
-MainFrame.BackgroundTransparency = 0.15
+MainFrame.BackgroundTransparency = 0.1
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Visible = false
 MainFrame.Parent = ScreenGui
-local UICornerMain = Instance.new("UICorner"); UICornerMain.CornerRadius = UDim.new(0, 12); UICornerMain.Parent = MainFrame
-local UIStrokeMain = Instance.new("UIStroke"); UIStrokeMain.Color = Colors.Accent; UIStrokeMain.Thickness = 1.5; UIStrokeMain.Transparency = 0.2; UIStrokeMain.Parent = MainFrame
+local UICornerM = Instance.new("UICorner"); UICornerM.CornerRadius = UDim.new(0, 12); UICornerM.Parent = MainFrame
+local UIStrokeM = Instance.new("UIStroke"); UIStrokeM.Color = Colors.Accent; UIStrokeM.Thickness = 1.5; UIStrokeM.Transparency = 0.2; UIStrokeM.Parent = MainFrame
 
--- Barra de Título
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 45)
+TitleBar.Size = UDim2.new(1, 0, 0, 35)
 TitleBar.BackgroundTransparency = 1
 TitleBar.Parent = MainFrame
 
 local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -150, 1, 0)
-TitleText.Position = UDim2.new(0, 20, 0, 0)
+TitleText.Size = UDim2.new(1, -100, 1, 0)
+TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "Midnight Hub"
+TitleText.Text = "Midnight Stable Hub"
 TitleText.TextColor3 = Colors.Text
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 18
+TitleText.TextSize = 15
 TitleText.Parent = TitleBar
 
 local MinBtn = Instance.new("TextButton")
 MinBtn.Size = UDim2.new(0, 25, 0, 25)
-MinBtn.Position = UDim2.new(1, -80, 0, 10)
+MinBtn.Position = UDim2.new(1, -60, 0, 5)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Text = "—"
 MinBtn.TextColor3 = Colors.TextDim
 MinBtn.Font = Enum.Font.GothamBold
-MinBtn.TextSize = 20
+MinBtn.TextSize = 18
 MinBtn.Parent = TitleBar
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 25, 0, 25)
-CloseBtn.Position = UDim2.new(1, -50, 0, 10)
+CloseBtn.Position = UDim2.new(1, -30, 0, 5)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Colors.TextDim
@@ -148,9 +145,8 @@ CloseBtn.TextSize = 14
 CloseBtn.Parent = TitleBar
 
 local function CloseHub()
-    local tweenOut = TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)})
-    tweenOut:Play()
-    tweenOut.Completed:Wait()
+    TweenService:Create(MainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)}):Play()
+    task.wait(0.3)
     MainFrame.Visible = false
     BallBtn.Visible = true
 end
@@ -160,20 +156,17 @@ local function OpenHub()
     MainFrame.Visible = true
     MainFrame.Size = UDim2.new(0, 0, 0, 0)
     MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    local tweenIn = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 650, 0, 420), Position = UDim2.new(0.5, -325, 0.5, -210)})
-    tweenIn:Play()
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(0, 480, 0, 320), Position = UDim2.new(0.5, -240, 0.5, -160)}):Play()
 end
 
 MinBtn.MouseButton1Click:Connect(CloseHub)
 BallBtn.MouseButton1Click:Connect(OpenHub)
 CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
 
--- ==========================================
--- 2. SIDEBAR E PÁGINAS
--- ==========================================
+-- Sidebar e Pages
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 160, 1, -60)
-Sidebar.Position = UDim2.new(0, 10, 0, 50)
+Sidebar.Size = UDim2.new(0, 120, 1, -45)
+Sidebar.Position = UDim2.new(0, 10, 0, 40)
 Sidebar.BackgroundColor3 = Colors.SideBG
 Sidebar.BackgroundTransparency = 0.2
 Sidebar.Parent = MainFrame
@@ -182,29 +175,34 @@ local UICornerSide = Instance.new("UICorner"); UICornerSide.CornerRadius = UDim.
 local Pages = {}
 local ActiveBtn = nil
 
-local function CreateSidebarTab(icon, text, pageName)
+local function CreateTab(icon, text, pageName)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 35)
+    btn.Size = UDim2.new(1, -10, 0, 30)
     btn.BackgroundColor3 = Colors.SideBG
     btn.BackgroundTransparency = 1
     btn.Text = "  " .. icon .. "  " .. text
     btn.TextColor3 = Colors.TextDim
     btn.TextXAlignment = Enum.TextXAlignment.Left
     btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 13
+    btn.TextSize = 12
     btn.Parent = Sidebar
     local uic = Instance.new("UICorner"); uic.CornerRadius = UDim.new(0, 6); uic.Parent = btn
     
     local page = Instance.new("ScrollingFrame")
-    page.Size = UDim2.new(1, -190, 1, -60)
-    page.Position = UDim2.new(0, 180, 0, 50)
+    page.Size = UDim2.new(1, -145, 1, -50)
+    page.Position = UDim2.new(0, 135, 0, 40)
     page.BackgroundTransparency = 1
     page.Visible = false
     page.CanvasSize = UDim2.new(0, 0, 0, 0)
-    page.ScrollBarThickness = 3
-    page.ScrollBarImageColor3 = Colors.Accent
+    page.ScrollBarThickness = 2
     page.Parent = MainFrame
     Pages[pageName] = page
+
+    -- Adiciona UIListLayout para organizar tudo automaticamente
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 8)
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+    layout.Parent = page
 
     btn.MouseButton1Click:Connect(function()
         for _, p in pairs(Pages) do p.Visible = false end
@@ -233,29 +231,31 @@ end
 
 local SideLayout = Instance.new("UIListLayout")
 SideLayout.Padding = UDim.new(0, 5)
-SideLayout.SortOrder = Enum.SortOrder.LayoutOrder
 SideLayout.Parent = Sidebar
 
-local HomePage = CreateSidebarTab("🏠", "Home", "Home")
-local FarmPage = CreateSidebarTab("⚔️", "Farm", "Farm")
-local ConfigPage = CreateSidebarTab("⚙️", "Config", "Config")
+local HomePage = CreateTab("🏠", "Home", "Home")
+local FarmPage = CreateTab("⚔️", "Farm", "Farm")
+local ConfigPage = CreateTab("⚙️", "Config", "Config")
 
--- Conteúdo: HOME
-local WelcomeLabel = Instance.new("TextLabel")
-WelcomeLabel.Size = UDim2.new(1, 0, 0, 40)
-WelcomeLabel.BackgroundTransparency = 1
-WelcomeLabel.Text = "Bem-vindo ao Midnight Glass"
-WelcomeLabel.TextColor3 = Colors.Text
-WelcomeLabel.TextXAlignment = Enum.TextXAlignment.Left
-WelcomeLabel.Font = Enum.Font.GothamBold
-WelcomeLabel.TextSize = 22
-WelcomeLabel.Parent = HomePage
+-- ==========================================
+-- 2. CONTEÚDO: HOME
+-- ==========================================
+local Welcome = Instance.new("TextLabel")
+Welcome.Size = UDim2.new(1, 0, 0, 25)
+Welcome.BackgroundTransparency = 1
+Welcome.Text = "Bem-vindo!"
+Welcome.TextColor3 = Colors.Text
+Welcome.TextXAlignment = Enum.TextXAlignment.Left
+Welcome.Font = Enum.Font.GothamBold
+Welcome.TextSize = 16
+Welcome.LayoutOrder = 1
+Welcome.Parent = HomePage
 
 local InfoBox = Instance.new("Frame")
-InfoBox.Size = UDim2.new(1, -10, 0, 80)
-InfoBox.Position = UDim2.new(0, 0, 0, 50)
+InfoBox.Size = UDim2.new(1, -10, 0, 60)
 InfoBox.BackgroundColor3 = Colors.CardBG
 InfoBox.BackgroundTransparency = 0.4
+InfoBox.LayoutOrder = 2
 InfoBox.Parent = HomePage
 local UICornerInfo = Instance.new("UICorner"); UICornerInfo.CornerRadius = UDim.new(0, 8); UICornerInfo.Parent = InfoBox
 
@@ -263,268 +263,220 @@ local InfoText = Instance.new("TextLabel")
 InfoText.Size = UDim2.new(1, -20, 1, -20)
 InfoText.Position = UDim2.new(0, 10, 0, 10)
 InfoText.BackgroundTransparency = 1
-InfoText.Text = "Script atualizado com sistema de ordenação de valores e filtros dinâmicos."
+InfoText.Text = "Hub otimizado. Layout automático sem bugs de sobreposição."
 InfoText.TextColor3 = Colors.TextDim
 InfoText.Font = Enum.Font.Gotham
-InfoText.TextSize = 13
+InfoText.TextSize = 12
 InfoText.TextWrapped = true
 InfoText.TextXAlignment = Enum.TextXAlignment.Left
-InfoText.TextYAlignment = Enum.TextYAlignment.Top
 InfoText.Parent = InfoBox
 
 -- ==========================================
--- 3. CONTEÚDO: FARM (Com Filtros e Sorter)
+-- 3. CONTEÚDO: FARM
 -- ==========================================
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, 0, 0, 25)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Status: Aguardando..."
-StatusLabel.TextColor3 = Colors.Accent
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
-StatusLabel.Font = Enum.Font.GothamBold
-StatusLabel.TextSize = 13
-StatusLabel.Parent = FarmPage
+local Status = Instance.new("TextLabel")
+Status.Size = UDim2.new(1, 0, 0, 20)
+Status.BackgroundTransparency = 1
+Status.Text = "Status: Parado"
+Status.TextColor3 = Colors.Accent
+Status.TextXAlignment = Enum.TextXAlignment.Left
+Status.Font = Enum.Font.GothamBold
+Status.TextSize = 12
+Status.LayoutOrder = 1
+Status.Parent = FarmPage
 
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(1, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0, 0, 0, 30)
+ToggleBtn.Size = UDim2.new(1, 0, 0, 30)
 ToggleBtn.BackgroundColor3 = Colors.Green
 ToggleBtn.BackgroundTransparency = 0.2
 ToggleBtn.Text = "▶ INICIAR AUTO FARM"
 ToggleBtn.TextColor3 = Colors.MainBG
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 14
+ToggleBtn.TextSize = 13
+ToggleBtn.LayoutOrder = 2
 ToggleBtn.Parent = FarmPage
 local uicTg = Instance.new("UICorner"); uicTg.CornerRadius = UDim.new(0, 8); uicTg.Parent = ToggleBtn
 
 local SellBtn = Instance.new("TextButton")
 SellBtn.Size = UDim2.new(1, 0, 0, 30)
-SellBtn.Position = UDim2.new(0, 0, 0, 75)
 SellBtn.BackgroundColor3 = Colors.CardBG
 SellBtn.BackgroundTransparency = 0.4
-SellBtn.Text = "💰 VENDER TUDO (SellAll)"
+SellBtn.Text = "💰 VENDER TUDO"
 SellBtn.TextColor3 = Colors.Text
 SellBtn.Font = Enum.Font.GothamBold
 SellBtn.TextSize = 12
+SellBtn.LayoutOrder = 3
 SellBtn.Parent = FarmPage
 local uicSell = Instance.new("UICorner"); uicSell.CornerRadius = UDim.new(0, 8); uicSell.Parent = SellBtn
 
--- DROPDOWN DE RARIDADE
-local DropdownBtn = Instance.new("TextButton")
-DropdownBtn.Size = UDim2.new(1, 0, 0, 35)
-DropdownBtn.Position = UDim2.new(0, 0, 0, 120)
-DropdownBtn.BackgroundColor3 = Colors.CardBG
-DropdownBtn.BackgroundTransparency = 0.4
-DropdownBtn.Text = "  ⭐ Selecionar Raridades ▼"
-DropdownBtn.TextColor3 = Colors.Text
-DropdownBtn.TextXAlignment = Enum.TextXAlignment.Left
-DropdownBtn.Font = Enum.Font.GothamBold
-DropdownBtn.TextSize = 13
-DropdownBtn.Parent = FarmPage
-local uicDrop = Instance.new("UICorner"); uicDrop.CornerRadius = UDim.new(0, 8); uicDrop.Parent = DropdownBtn
+-- BOTÃO RARIDADE
+local RarityBtn = Instance.new("TextButton")
+RarityBtn.Size = UDim2.new(1, 0, 0, 30)
+RarityBtn.BackgroundColor3 = Colors.CardBG
+RarityBtn.BackgroundTransparency = 0.4
+RarityBtn.Text = "  ⭐ Selecionar Raridades ▼"
+RarityBtn.TextColor3 = Colors.Text
+RarityBtn.TextXAlignment = Enum.TextXAlignment.Left
+RarityBtn.Font = Enum.Font.GothamBold
+RarityBtn.TextSize = 12
+RarityBtn.LayoutOrder = 4
+RarityBtn.Parent = FarmPage
+local uicRar = Instance.new("UICorner"); uicRar.CornerRadius = UDim.new(0, 8); uicRar.Parent = RarityBtn
 
-local DropdownContainer = Instance.new("Frame")
-DropdownContainer.Size = UDim2.new(1, 0, 0, 0)
-DropdownContainer.Position = UDim2.new(0, 0, 0, 160)
-DropdownContainer.BackgroundTransparency = 1
-DropdownContainer.ClipsDescendants = true
-DropdownContainer.Parent = FarmPage
-
-local DropLayout = Instance.new("UIListLayout")
-DropLayout.Padding = UDim.new(0, 5)
-DropLayout.Parent = DropdownContainer
-
--- DROPDOWN DE ORDENAÇÃO (NOVO)
+-- BOTÃO ORDEM
 local SortBtn = Instance.new("TextButton")
-SortBtn.Size = UDim2.new(1, 0, 0, 35)
-SortBtn.Position = UDim2.new(0, 0, 0, 165) -- Fica abaixo do outro dropdown
+SortBtn.Size = UDim2.new(1, 0, 0, 30)
 SortBtn.BackgroundColor3 = Colors.CardBG
 SortBtn.BackgroundTransparency = 0.4
-SortBtn.Text = "  📏 Ordem: Mais Próximo ▼"
+SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▼"
 SortBtn.TextColor3 = Colors.Text
 SortBtn.TextXAlignment = Enum.TextXAlignment.Left
 SortBtn.Font = Enum.Font.GothamBold
-SortBtn.TextSize = 13
+SortBtn.TextSize = 12
+SortBtn.LayoutOrder = 5
 SortBtn.Parent = FarmPage
 local uicSort = Instance.new("UICorner"); uicSort.CornerRadius = UDim.new(0, 8); uicSort.Parent = SortBtn
 
-local SortContainer = Instance.new("Frame")
-SortContainer.Size = UDim2.new(1, 0, 0, 0)
-SortContainer.Position = UDim2.new(0, 0, 0, 205)
-SortContainer.BackgroundTransparency = 1
-SortContainer.ClipsDescendants = true
-SortContainer.Parent = FarmPage
-
-local SortLayout = Instance.new("UIListLayout")
-SortLayout.Padding = UDim.new(0, 5)
-SortLayout.Parent = SortContainer
-
--- Lógica de abrir/fechar os Dropdowns
-DropdownBtn.MouseButton1Click:Connect(function()
-    isRarityDropOpen = not isRarityDropOpen
-    if isRarityDropOpen then
-        DropdownBtn.Text = "  ⭐ Selecionar Raridades ▲"
-        TweenService:Create(DropdownContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 210)}):Play()
-        -- Fecha o outro para não sobrepor
-        if isSortDropOpen then
-            isSortDropOpen = false
-            SortBtn.Text = "  📏 Ordem: Mais Próximo ▼"
-            TweenService:Create(SortContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-        end
-    else
-        DropdownBtn.Text = "  ⭐ Selecionar Raridades ▼"
-        TweenService:Create(DropdownContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-    end
-end)
-
-SortBtn.MouseButton1Click:Connect(function()
-    isSortDropOpen = not isSortDropOpen
-    if isSortDropOpen then
-        SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▲"
-        TweenService:Create(SortContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 105)}):Play()
-        -- Fecha o outro
-        if isRarityDropOpen then
-            isRarityDropOpen = false
-            DropdownBtn.Text = "  ⭐ Selecionar Raridades ▼"
-            TweenService:Create(DropdownContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-        end
-    else
-        SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▼"
-        TweenService:Create(SortContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-    end
-end)
-
--- Criando as opções de Ordenação
-local function CreateSortOption(text, modeName)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.BackgroundColor3 = Color3.fromRGB(40, 25, 70)
-    btn.BackgroundTransparency = 0.5
-    btn.Text = "  " .. text
-    btn.TextColor3 = Colors.TextDim
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 12
-    btn.Parent = SortContainer
-    local uic = Instance.new("UICorner"); uic.CornerRadius = UDim.new(0, 6); uic.Parent = btn
-
-    btn.MouseButton1Click:Connect(function()
-        sortMode = modeName
-        SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▼"
-        isSortDropOpen = false
-        TweenService:Create(SortContainer, TweenInfo.new(0.3), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-    end)
-end
-
-CreateSortOption("📍 Mais Próximo", "Mais Próximo")
-CreateSortOption("📉 Menor Valor ($)", "Menor Valor")
-CreateSortOption("📈 Maior Valor ($$$)", "Maior Valor")
-
--- Criando os Toggles de Raridade
-local function CreateCardToggle(name, color)
+-- Lógica de Expandir (Empurrando o layout)
+local function CreateToggle(parent, name, color, order)
     local card = Instance.new("Frame")
     card.Size = UDim2.new(1, -10, 0, 30)
     card.BackgroundColor3 = Colors.CardBG
     card.BackgroundTransparency = 0.4
+    card.LayoutOrder = order
+    card.Parent = parent
     local uic = Instance.new("UICorner"); uic.CornerRadius = UDim.new(0, 6); uic.Parent = card
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -60, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = name
-    label.TextColor3 = Colors.Text
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.GothamBold
-    label.TextSize = 12
-    label.Parent = card
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -60, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = name
+    lbl.TextColor3 = Colors.Text
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 12
+    lbl.Parent = card
 
-    local toggleBg = Instance.new("Frame")
-    toggleBg.Size = UDim2.new(0, 30, 0, 15)
-    toggleBg.Position = UDim2.new(1, -40, 0.5, -7.5)
-    toggleBg.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-    toggleBg.Parent = card
-    local uicTgBg = Instance.new("UICorner"); uicTgBg.CornerRadius = UDim.new(1, 0); uicTgBg.Parent = toggleBg
+    local tgBg = Instance.new("Frame")
+    tgBg.Size = UDim2.new(0, 30, 0, 15)
+    tgBg.Position = UDim2.new(1, -40, 0.5, -7.5)
+    tgBg.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    tgBg.Parent = card
+    local uicBg = Instance.new("UICorner"); uicBg.CornerRadius = UDim.new(1, 0); uicBg.Parent = tgBg
 
-    local toggleCircle = Instance.new("Frame")
-    toggleCircle.Size = UDim2.new(0, 11, 0, 11)
-    toggleCircle.Position = UDim2.new(0, 2, 0.5, -5.5)
-    toggleCircle.BackgroundColor3 = Colors.TextDim
-    toggleCircle.Parent = toggleBg
-    local uicTgCir = Instance.new("UICorner"); uicTgCir.CornerRadius = UDim.new(1, 0); uicTgCir.Parent = toggleCircle
+    local tgCir = Instance.new("Frame")
+    tgCir.Size = UDim2.new(0, 11, 0, 11)
+    tgCir.Position = UDim2.new(0, 2, 0.5, -5.5)
+    tgCir.BackgroundColor3 = Colors.TextDim
+    tgCir.Parent = tgBg
+    local uicCir = Instance.new("UICorner"); uicCir.CornerRadius = UDim.new(1, 0); uicCir.Parent = tgCir
 
-    local isActive = false
+    local isOn = false
     card.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isActive = not isActive
-            if isActive then
-                TweenService:Create(toggleBg, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
-                TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(1, -13, 0.5, -5.5), BackgroundColor3 = Colors.Text}):Play()
+            isOn = not isOn
+            if isOn then
+                TweenService:Create(tgBg, TweenInfo.new(0.2), {BackgroundColor3 = color}):Play()
+                TweenService:Create(tgCir, TweenInfo.new(0.2), {Position = UDim2.new(1, -13, 0.5, -5.5), BackgroundColor3 = Colors.Text}):Play()
                 activeRarities[name] = true
             else
-                TweenService:Create(toggleBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 80)}):Play()
-                TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -5.5), BackgroundColor3 = Colors.TextDim}):Play()
+                TweenService:Create(tgBg, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 60, 80)}):Play()
+                TweenService:Create(tgCir, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -5.5), BackgroundColor3 = Colors.TextDim}):Play()
                 activeRarities[name] = nil
             end
         end
     end)
-    return card
 end
 
-local divinoToggle = CreateCardToggle("Divino", Color3.fromRGB(255, 215, 0)); divinoToggle.Parent = DropdownContainer
-local secretoToggle = CreateCardToggle("Secreto", Color3.fromRGB(150, 150, 150)); secretoToggle.Parent = DropdownContainer
-local miticoToggle = CreateCardToggle("Mítico", Color3.fromRGB(200, 50, 200)); miticoToggle.Parent = DropdownContainer
-local lendarioToggle = CreateCardToggle("Lendário", Color3.fromRGB(255, 165, 0)); lendarioToggle.Parent = DropdownContainer
-local epicoToggle = CreateCardToggle("Épico", Color3.fromRGB(150, 50, 200)); epicoToggle.Parent = DropdownContainer
-local raroToggle = CreateCardToggle("Raro", Color3.fromRGB(0, 150, 255)); raroToggle.Parent = DropdownContainer
+RarityBtn.MouseButton1Click:Connect(function()
+    isRarityOpen = not isRarityOpen
+    if isRarityOpen then
+        RarityBtn.Text = "  ⭐ Selecionar Raridades ▲"
+        rarityFrame = Instance.new("Frame")
+        rarityFrame.Size = UDim2.new(1, 0, 0, 200)
+        rarityFrame.BackgroundTransparency = 1
+        rarityFrame.LayoutOrder = 6 -- Fica logo abaixo do botão
+        rarityFrame.Parent = FarmPage
+        
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 5)
+        layout.Parent = rarityFrame
 
-ToggleBtn.MouseButton1Click:Connect(function()
-    if isFarming then
-        isFarming = false
-        ToggleBtn.Text = "▶ INICIAR AUTO FARM"
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.3), {BackgroundColor3 = Colors.Green}):Play()
-        StatusLabel.Text = "Status: Parado"
+        CreateToggle(rarityFrame, "Divino", Color3.fromRGB(255, 215, 0), 1)
+        CreateToggle(rarityFrame, "Secreto", Color3.fromRGB(150, 150, 150), 2)
+        CreateToggle(rarityFrame, "Mítico", Color3.fromRGB(200, 50, 200), 3)
+        CreateToggle(rarityFrame, "Lendário", Color3.fromRGB(255, 165, 0), 4)
+        CreateToggle(rarityFrame, "Épico", Color3.fromRGB(150, 50, 200), 5)
+        CreateToggle(rarityFrame, "Raro", Color3.fromRGB(0, 150, 255), 6)
     else
-        task.spawn(StartAutoFarm)
+        RarityBtn.Text = "  ⭐ Selecionar Raridades ▼"
+        if rarityFrame then rarityFrame:Destroy() rarityFrame = nil end
     end
 end)
 
-SellBtn.MouseButton1Click:Connect(function()
-    if SellAllRemote then
-        StatusLabel.Text = "Vendendo todos os Exus..."
-        pcall(function() SellAllRemote:FireServer() end)
+SortBtn.MouseButton1Click:Connect(function()
+    isSortOpen = not isSortOpen
+    if isSortOpen then
+        SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▲"
+        sortFrame = Instance.new("Frame")
+        sortFrame.Size = UDim2.new(1, 0, 0, 95)
+        sortFrame.BackgroundTransparency = 1
+        sortFrame.LayoutOrder = 7
+        sortFrame.Parent = FarmPage
+
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 5)
+        layout.Parent = sortFrame
+
+        local function CreateSortOpt(text, mode, order)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -10, 0, 25)
+            btn.BackgroundColor3 = Colors.CardBG
+            btn.Text = "  " .. text
+            btn.TextColor3 = Colors.Text
+            btn.TextXAlignment = Enum.TextXAlignment.Left
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 11
+            btn.LayoutOrder = order
+            btn.Parent = sortFrame
+            local uic = Instance.new("UICorner"); uic.CornerRadius = UDim.new(0, 4); uic.Parent = btn
+            btn.MouseButton1Click:Connect(function()
+                sortMode = mode
+                SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▼"
+                isSortOpen = false
+                if sortFrame then sortFrame:Destroy() sortFrame = nil end
+            end)
+        end
+
+        CreateSortOpt("📍 Mais Próximo", "Mais Próximo", 1)
+        CreateSortOpt("📉 Menor Valor ($)", "Menor Valor", 2)
+        CreateSortOpt("📈 Maior Valor ($$$)", "Maior Valor", 3)
+    else
+        SortBtn.Text = "  📏 Ordem: " .. sortMode .. " ▼"
+        if sortFrame then sortFrame:Destroy() sortFrame = nil end
     end
 end)
 
 -- ==========================================
--- 4. CONTEÚDO: CONFIG (Slider)
+-- 4. CONTEÚDO: CONFIG
 -- ==========================================
-local SpeedTitle = Instance.new("TextLabel")
-SpeedTitle.Size = UDim2.new(1, 0, 0, 30)
-SpeedTitle.BackgroundTransparency = 1
-SpeedTitle.Text = "Velocidade de Voo:"
-SpeedTitle.TextColor3 = Colors.Text
-SpeedTitle.TextXAlignment = Enum.TextXAlignment.Left
-SpeedTitle.Font = Enum.Font.GothamBold
-SpeedTitle.TextSize = 14
-SpeedTitle.Parent = ConfigPage
-
-local SpeedVal = Instance.new("TextLabel")
-SpeedVal.Size = UDim2.new(1, 0, 0, 20)
-SpeedVal.Position = UDim2.new(0, 0, 0, 25)
-SpeedVal.BackgroundTransparency = 1
-SpeedVal.Text = tostring(currentSpeed)
-SpeedVal.TextColor3 = Colors.Accent
-SpeedVal.TextXAlignment = Enum.TextXAlignment.Left
-SpeedVal.Font = Enum.Font.GothamBold
-SpeedVal.TextSize = 12
-SpeedVal.Parent = ConfigPage
+local SpeedTxt = Instance.new("TextLabel")
+SpeedTxt.Size = UDim2.new(1, 0, 0, 20)
+SpeedTxt.BackgroundTransparency = 1
+SpeedTxt.Text = "Velocidade: " .. currentSpeed
+SpeedTxt.TextColor3 = Colors.Accent
+SpeedTxt.TextXAlignment = Enum.TextXAlignment.Left
+SpeedTxt.Font = Enum.Font.GothamBold
+SpeedTxt.TextSize = 12
+SpeedTxt.LayoutOrder = 1
+SpeedTxt.Parent = ConfigPage
 
 local SliderBg = Instance.new("Frame")
 SliderBg.Size = UDim2.new(1, -20, 0, 8)
-SliderBg.Position = UDim2.new(0, 0, 0, 55)
 SliderBg.BackgroundColor3 = Colors.CardBG
 SliderBg.BackgroundTransparency = 0.2
+SliderBg.LayoutOrder = 2
 SliderBg.Parent = ConfigPage
 local uicSlBg = Instance.new("UICorner"); uicSlBg.CornerRadius = UDim.new(1, 0); uicSlBg.Parent = SliderBg
 
@@ -553,7 +505,7 @@ UserInputService.InputChanged:Connect(function(input)
         
         currentSpeed = math.floor((relativeX * 9900) + 100)
         SliderFill.Size = UDim2.new(relativeX, 0, 1, 0)
-        SpeedVal.Text = tostring(currentSpeed)
+        SpeedTxt.Text = "Velocidade: " .. currentSpeed
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
@@ -561,26 +513,22 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ==========================================
--- 5. LÓGICA DO JOGO (COM EXTRAÇÃO DE VALOR)
+-- 5. LÓGICA DE JOGO
 -- ==========================================
 local function GetExuData(model)
     local name = model.Name
     local rarity = "Comum"
-    local money = 0 -- Valor numérico para ordenação
-    
+    local money = 0
     local attrs = model:GetAttributes()
     for attrName, value in pairs(attrs) do
         local lowerName = string.lower(attrName)
         if string.find(lowerName, "rarity") or string.find(lowerName, "raridade") then 
             rarity = tostring(value) 
         elseif string.find(lowerName, "price") or string.find(lowerName, "value") or string.find(lowerName, "income") or string.find(lowerName, "money") then
-            -- Tenta extrair o número do valor (ex: "$1,500" ou "1500")
             local numStr = string.match(tostring(value), "%d+")
             if numStr then money = tonumber(numStr) end
         end
     end
-    
-    -- Se não achou no Attribute, tenta achar um número no nome
     if money == 0 then
         local numStr = string.match(name, "%d+")
         if numStr then money = tonumber(numStr) end
@@ -629,9 +577,7 @@ end
 local function StealSpecificExu(model, prompt, exuPart)
     FlyTo(exuPart.CFrame + Vector3.new(0, 3, 0), currentSpeed)
     task.wait(0.2)
-    
     pcall(function() if prompt.HoldDuration > 0 then prompt.HoldDuration = 0 end end)
-    
     pcall(function() 
         fireproximityprompt(prompt)
         if DropExuRemote then 
@@ -639,7 +585,6 @@ local function StealSpecificExu(model, prompt, exuPart)
             DropExuRemote:FireServer(exuPart.Position)
         end
     end)
-    
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
         task.wait(0.05)
@@ -652,7 +597,6 @@ local function StealSpecificExu(model, prompt, exuPart)
         if IsHoldingExu() then grabbed = true; break end
         task.wait(0.05)
     end
-    
     ReturnToBase()
     return grabbed
 end
@@ -664,7 +608,7 @@ function StartAutoFarm()
     TweenService:Create(ToggleBtn, TweenInfo.new(0.3), {BackgroundColor3 = Colors.Red}):Play()
     
     baseCFrame = hrp.CFrame
-    StatusLabel.Text = "Base salva! Iniciando..."
+    Status.Text = "Base salva! Iniciando..."
     
     while isFarming do
         local successLoop, errorMsg = pcall(function()
@@ -672,7 +616,6 @@ function StartAutoFarm()
             local hasFilter = false
             for _ in pairs(activeRarities) do hasFilter = true break end
             
-            -- 1. Coleta TODOS os exus válidos no mapa
             for _, obj in pairs(game.Workspace:GetDescendants()) do
                 if obj:IsA("ProximityPrompt") and string.lower(obj.ActionText) == "roubar" then
                     local part = obj.Parent
@@ -703,29 +646,24 @@ function StartAutoFarm()
                 end
             end
 
-            -- 2. Ordena a lista com base na escolha do jogador
             if #validTargets > 0 then
                 if sortMode == "Menor Valor" then
                     table.sort(validTargets, function(a, b) return a.value < b.value end)
                 elseif sortMode == "Maior Valor" then
                     table.sort(validTargets, function(a, b) return a.value > b.value end)
                 else
-                    -- Mais Próximo (Padrão)
                     table.sort(validTargets, function(a, b) return a.distance < b.distance end)
                 end
 
-                -- 3. Pega o primeiro da lista (o melhor)
-                local bestTarget = validTargets[1]
-                
-                StatusLabel.Text = "Roubando " .. bestTarget.part.Parent.Name .. " ($" .. bestTarget.value .. ")..."
-                local grabbed = StealSpecificExu(bestTarget.part.Parent, bestTarget.prompt, bestTarget.part)
+                local best = validTargets[1]
+                Status.Text = "Roubando " .. best.part.Parent.Name .. " ($" .. best.value .. ")..."
+                local grabbed = StealSpecificExu(best.part.Parent, best.prompt, best.part)
                 
                 if grabbed then
-                    StatusLabel.Text = "✅ Colocando na base..."
+                    Status.Text = "✅ Colocando na base..."
                     if PlaceExuRemote then
                         pcall(function() PlaceExuRemote:FireServer(baseCFrame.Position); PlaceExuRemote:FireServer() end)
                     end
-                    
                     local basePrompt = nil
                     for _, obj in pairs(game.Workspace:GetDescendants()) do
                         if obj:IsA("ProximityPrompt") then
@@ -740,21 +678,35 @@ function StartAutoFarm()
                     if basePrompt then pcall(function() fireproximityprompt(basePrompt) end) end
                     task.wait(0.5)
                 else
-                    StatusLabel.Text = "❌ Falha ao pegar."
+                    Status.Text = "❌ Falha ao pegar."
                     task.wait(0.5)
                 end
             else
-                StatusLabel.Text = "Nenhum Exu encontrado."
+                Status.Text = "Nenhum Exu encontrado."
                 task.wait(1)
             end
         end)
-        
-        if not successLoop then
-            StatusLabel.Text = "Erro detectado, reiniciando..."
-            task.wait(1)
-        end
+        if not successLoop then Status.Text = "Erro. Reiniciando..." task.wait(1) end
     end
 end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    if isFarming then
+        isFarming = false
+        ToggleBtn.Text = "▶ INICIAR AUTO FARM"
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.3), {BackgroundColor3 = Colors.Green}):Play()
+        Status.Text = "Status: Parado"
+    else
+        task.spawn(StartAutoFarm)
+    end
+end)
+
+SellBtn.MouseButton1Click:Connect(function()
+    if SellAllRemote then
+        Status.Text = "Vendendo..."
+        pcall(function() SellAllRemote:FireServer() end)
+    end
+end)
 
 LocalPlayer.CharacterAdded:Connect(function(char)
     playerChar = char
@@ -763,32 +715,21 @@ LocalPlayer.CharacterAdded:Connect(function(char)
         isFarming = false
         ToggleBtn.Text = "▶ INICIAR AUTO FARM"
         TweenService:Create(ToggleBtn, TweenInfo.new(0.3), {BackgroundColor3 = Colors.Green}):Play()
-        StatusLabel.Text = "Você morreu! Farm parado."
+        Status.Text = "Você morreu! Parado."
     end
 end)
 
--- ==========================================
--- 6. ANIMAÇÃO DE CARREGAMENTO
--- ==========================================
+-- ANIMAÇÃO FINAL
 task.spawn(function()
     local rot = 0
     local spin = RunService.RenderStepped:Connect(function(dt)
         rot = rot + dt * 180
         LoadIcon.Rotation = rot
     end)
-    
     task.wait(1.5) 
     spin:Disconnect()
-    
-    local tweenOut = TweenService:Create(LoadingFrame, TweenInfo.new(0.4), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 1})
-    tweenOut:Play()
-    tweenOut.Completed:Wait()
-    LoadingFrame:Destroy()
-    
-    MainFrame.Visible = true
-    MainFrame.Size = UDim2.new(0, 0, 0, 0)
-    MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    
-    local tweenIn = TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 650, 0, 420), Position = UDim2.new(0.5, -325, 0.5, -210)})
-    tweenIn:Play()
+    TweenService:Create(Loading, TweenInfo.new(0.4), {Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0), BackgroundTransparency = 1}):Play()
+    task.wait(0.4)
+    Loading:Destroy()
+    OpenHub()
 end)
